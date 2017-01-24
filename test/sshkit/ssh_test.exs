@@ -1,10 +1,10 @@
 defmodule SSHKit.SSHTest do
-  use ExUnit.Case
+  use SSHKit.FunctionalCase
   alias SSHKit.SSH
 
   @defaults [silently_accept_hosts: true]
 
-  test "opens a connection" do
+  test "opens a connection with username and password" do
     host = '192.168.99.100'
     options = [port: 2222, user: 'test', password: 'test']
     command = 'whoami'
