@@ -2,7 +2,12 @@ defmodule SSHKitTest do
   use SSHKit.FunctionalCase
   # doctest SSHKit
 
-  test "connects" do
+  @tag boot: 1
+  test "connects", %{hosts: [host]} do
+    IO.inspect(hosts)
+    # context = SSHKit.context({"192.168.99.100", port: host.port})
+    # {:ok, output} = SSHKit.run(context, "whoami")
+    # Docker.exec!(host.id, "ls")
   end
 
   test "command" do
