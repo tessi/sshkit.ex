@@ -6,19 +6,22 @@ defmodule SSHKit.SSH do
   ## Examples
 
   ```
-  {:ok, conn} = SSHKit.SSH.connect('eg.io', user: 'me')
-  {:ok, output, status} = SSHKit.SSH.run(conn, 'uptime')
-  :ok = SSHKit.SSH.close(conn)
+  {:ok, conn} = SSHKit.SSH.connect("eg.io", user: "me")
 
-  log = fn {type, data} ->
-    case type do
-      :normal -> IO.write(data)
-      :stderr -> IO.write([IO.ANSI.red, data, IO.ANSI.reset])
+  log = fn msg ->
+    case msg do
+      {:data, _, 0, data} -> IO.write(data)
+      {:data, _, 1, data} -> IO.write([IO.ANSI.red, data, IO.ANSI.reset])
     end
+
+    msg
   end
 
-  Enum.each(output, log)
-  IO.puts("$?: #{status}")
+  :ok = SSHKit.SSH.stream(conn, "uptime")
+  |> Stream.map(log)
+  |> TODO: Refine example
+
+  :ok = SSHKit.SSH.close(conn)
   ```
   """
 
@@ -33,7 +36,7 @@ defmodule SSHKit.SSH do
   ## Example
 
   ```
-  {:ok, conn} = SSHKit.SSH.connect('eg.io', port: 2222, user: 'me', timeout: 1000)
+  {:ok, conn} = SSHKit.SSH.connect("eg.io", port: 2222, user: "me", timeout: 1000)
   ```
   """
   def connect(host, options \\ []) do
@@ -58,38 +61,40 @@ defmodule SSHKit.SSH do
   @doc """
   Executes a command on the remote.
 
-  Using the default handler, returns `{:ok, output, status}` or
-  `{:error, reason}`.
-
-  By default, command output is captured into a list of tuples of the form
-  `{:normal, data}` or `{:stderr, data}`.
-
-  A custom handler function can be provided to handle channel messages.
+  Returns a channel stream, which will yield all channel messages and which you
+  can send messages into (the stream implements the Enumerable and Collectable
+  protocols).
 
   ## Example
 
   ```
-  {:ok, output, status} = SSHKit.SSH.run(conn, 'uptime')
+  SSHKit.SSH.stream(conn, "uptime")
+  |> Stream.reduce...
+
+  TODO: Refine example
   ```
   """
-  def run(connection, command, timeout \\ :infinity, ini \\ {:ok, [], nil}, handler \\ &capture/3) do
-    case Channel.open(connection, timeout: timeout) do
-      {:ok, channel} ->
-        case Channel.exec(channel, command, timeout) do
-          :success -> Channel.loop(channel, timeout, ini, handler)
-          :failure -> {:error, :failure}
-          other -> other
-        end
+  def stream(connection, command \\ nil, options \\ []) do
+    case Channel.open(connection, options) do
+      {:ok, channel} -> exec(channel, command, options) |> do_stream(options)
       other -> other
     end
   end
 
-  defp capture(_, message, state = {:ok, buffer, status}) do
-    case message do
-      {:data, 0, data} -> {:ok, [{:normal, data} | buffer], status}
-      {:data, 1, data} -> {:ok, [{:stderr, data} | buffer], status}
-      {:exit_status, code} -> {:ok, Enum.reverse(buffer), code}
-      _ -> state
+  defp do_stream(channel, options) do
+    Channel.Stream.__build__(channel, options)
+  end
+
+  defp exec(channel, nil, _) do
+    channel
+  end
+
+  defp exec(channel, command, options) do
+    timeout = Keyword.get(options, :timeout, :infinity)
+    case Channel.exec(channel, command, timeout) do
+      :failure -> {:error, :failure}
+      :success -> channel
+      other -> other
     end
   end
 end
