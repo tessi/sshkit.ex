@@ -39,6 +39,8 @@ defmodule SSHKit.SCP.Upload do
 
     handler = fn message, state ->
       case message do
+        {:data, _, 0, <<1, msg :: binary>>} -> warning(options, state, msg)
+        {:data, _, 0, <<2, msg :: binary>>} -> fatal(options, state, msg)
         {:data, _, 0, <<0>>} ->
           case state do
             {:next, cwd, stack, errs} -> next(options, cwd, stack, errs)
@@ -46,8 +48,6 @@ defmodule SSHKit.SCP.Upload do
             {:regular, name, stat, cwd, stack, errs} -> regular(options, name, stat, cwd, stack, errs)
             {:write, name, stat, cwd, stack, errs} -> write(options, name, stat, cwd, stack, errs)
           end
-        {:data, _, 0, <<1, msg :: binary>>} -> warning(options, state, msg)
-        {:data, _, 0, <<2, msg :: binary>>} -> fatal(options, state, msg)
         {:data, _, 0, msg} ->
           case state do
             {:warning, state, buffer} -> warning(options, state, buffer <> msg)
