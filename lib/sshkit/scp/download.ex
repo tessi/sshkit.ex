@@ -185,6 +185,12 @@ defmodule SSHKit.SCP.Download do
     end
   end
 
+  defp warning(_, state, buffer) do
+    IO.puts "INSIDE WARNING!! state is:"
+    IO.puts inspect state
+    {:cont, {:warning, state, buffer}}
+  end
+
   defp fatal(_, state, buffer) do
     if String.last(buffer) == "\n" do
       {:halt, {:error, String.trim(buffer)}}
