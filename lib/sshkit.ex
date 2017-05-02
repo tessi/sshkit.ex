@@ -75,19 +75,29 @@ defmodule SSHKit do
     Enum.map(context.hosts, run)
   end
 
-  # TODO: SCP operations
+  def upload(context, path, options \\ []) do
 
-  # def upload(context, path, options \\ []) do
-  #   …
-  #   # resolve remote relative to context path
-  #   remote = Path.expand(Map.get(options, :as, Path.basename(path)), _)
-  #   SCP.upload(conn, path, remote, options)
-  # end
+    # resolve remote relative to context path
+    remote = Path.join(context.pwd, Keyword.get(options, :as, path))
 
-  # def download(context, path, options \\ []) do
-  #   …
-  #   remote = _ # resolve remote relative to context path
-  #   local = Map.get(options, :as, Path.basename(path))
-  #   SCP.download(conn, remote, local, options)
-  # end
+    run = fn host ->
+      {:ok, conn} = SSH.connect(host.name, host.options)
+      SCP.upload(conn, path, remote, options)
+    end
+
+    Enum.map(context.hosts, run)
+  end
+
+  def download(context, path, options \\ []) do
+    # resolve remote relative to context path
+    remote = Path.join(context.pwd, path)
+    local = Keyword.get(options, :as, Path.basename(path))
+
+    run = fn host -> 
+      {:ok, conn} = SSH.connect(host.name, host.options)
+      SCP.download(conn, remote, local, options)
+    end
+
+    Enum.map(context.hosts, run)
+  end
 end
