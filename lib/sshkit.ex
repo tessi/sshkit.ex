@@ -25,8 +25,13 @@ defmodule SSHKit do
   alias SSHKit.Context
   alias SSHKit.Host
 
-  def context(hosts) do
-    hosts = List.wrap(hosts) |> Enum.map(&host/1)
+  def context(hosts, opts \\ []) do
+    hash_fun = Keyword.get(opts, :hash_fun, &set_hash/1)
+    hosts = hosts
+      |> List.wrap()
+      |> Enum.map(&host/1)
+      |> Enum.map(hash_fun)
+
     %Context{hosts: hosts}
   end
 
@@ -40,6 +45,14 @@ defmodule SSHKit do
 
   def host(name, options \\ []) do
     %Host{name: name, options: options}
+  end
+
+  def set_hash(%Host{name: name} = host) do
+    new_hash = :crypto.hash(:sha, name)
+      |> Base.encode16
+      |> String.slice(0..7)
+
+    %{host | uuid: new_hash}
   end
 
   def pwd(context, path) do
