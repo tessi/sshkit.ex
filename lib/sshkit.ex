@@ -69,8 +69,17 @@ defmodule SSHKit do
   @doc """
   See `host/1` for details and examples.
   """
-  def host(name, options \\ []) do
+  def host(host, options \\ [])
+  def host(name, options) when is_binary(name) do
     %Host{name: name, options: options}
+  end
+
+  def host(%{name: name, options: options}, shared_options) do
+    %Host{name: name, options: Keyword.merge(shared_options, options)}
+  end
+
+  def host({name, options}, shared_options) do
+    %Host{name: name, options: Keyword.merge(shared_options, options)}
   end
 
   @doc """
@@ -90,13 +99,26 @@ defmodule SSHKit do
   hosts = ["10.0.0.1", "10.0.0.2"]
   context = SSHKit.context(hosts)
   ```
+
+  Any shared options can be specified in the second argument.
+  Here we add a user and port for all hosts.
+
+  ```
+  hosts = ["10.0.0.1", "10.0.0.2"]
+  options = [user: "admin", port: "2222"]
+  context = SSHKit.context(hosts, options)
+  ```
   """
-  def context(hosts) do
+
+  def context(hosts, options \\ []) do
     hosts =
       hosts
       |> List.wrap
-      |> Enum.map(&host/1)
-    %Context{hosts: hosts}
+      |> Enum.map(
+        fn(h) ->
+          host(h, options)
+        end)
+      %Context{hosts: hosts}
   end
 
   @doc """
