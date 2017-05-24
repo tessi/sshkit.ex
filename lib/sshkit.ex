@@ -19,6 +19,7 @@ defmodule SSHKit do
   ```
   """
 
+  alias SSHKit.SCP
   alias SSHKit.SSH
 
   alias SSHKit.Context
@@ -262,17 +263,97 @@ defmodule SSHKit do
     Enum.map(context.hosts, run)
   end
 
-  # def upload(context, path, options \\ []) do
-  #   …
-  #   # resolve remote relative to context path
-  #   remote = Path.expand(Map.get(options, :as, Path.basename(path)), _)
-  #   SCP.upload(conn, path, remote, options)
-  # end
+  @doc ~S"""
+  Upload a file or files to the given context.
+  Returns a list of `:ok`.
+  There is one `:ok` per connected host where file upload was successful.
 
-  # def download(context, path, options \\ []) do
-  #   …
-  #   remote = _ # resolve remote relative to context path
-  #   local = Map.get(options, :as, Path.basename(path))
-  #   SCP.download(conn, remote, local, options)
-  # end
+  ## Examples
+
+  Upload all files and folders in current directory to "/workspace".
+
+  ```
+  [:ok] =
+    "my.remote-host.tld"
+    |> SSHKit.context
+    |> SSHKit.path("/workspace")
+    |> SSHKit.upload(".", recursive: true)
+
+  ```
+
+  Upload file to different name on host
+
+  ```
+  [:ok] =
+    "my.remote-host.tld"
+    |> SSHKit.context
+    |> SSHKit.upload("some_file.txt", as: "other_file.txt" )
+
+  ```
+
+  """
+  def upload(context, path, options \\ []) do
+    # resolve remote relative to context path
+    # override with :as option if present
+    remote = case Keyword.get(options, :as, false) do
+      false -> case context.path do
+        nil -> path
+        _ -> Path.join(context.path, path)
+      end
+      override -> override
+    end
+
+    run = fn host ->
+      {:ok, conn} = SSH.connect(host.name, host.options)
+      SCP.upload(conn, path, remote, options)
+    end
+
+    Enum.map(context.hosts, run)
+  end
+
+  @doc ~S"""
+  Download a file or files from the given context.
+  Returns a list of `:ok`.
+  There is one `:ok` per connected host where file download was successful.
+
+  ## Examples
+
+  Download all files and folders in context directory to current working directory.
+
+  ```
+  [:ok] =
+    "my.remote-host.tld"
+    |> SSHKit.context
+    |> SSHKit.path("/workspace")
+    |> SSHKit.upload(".", recursive: true)
+
+  ```
+
+  Download file to different local name.
+
+  ```
+  [:ok] =
+    "my.remote-host.tld"
+    |> SSHKit.context
+    |> SSHKit.download("some_file.txt", as: "other_file.txt" )
+
+  ```
+
+  """
+  def download(context, path, options \\ []) do
+
+    # resolve remote relative to context path
+    remote = case context.path do
+      nil -> path
+      _ -> Path.join(context.path, path)
+    end
+    local = Keyword.get(options, :as, Path.basename(path))
+
+    run = fn host ->
+      {:ok, conn} = SSH.connect(host.name, host.options)
+      SCP.download(conn, remote, local, options)
+    end
+
+    Enum.map(context.hosts, run)
+  end
 end
