@@ -295,14 +295,12 @@ defmodule SSHKit do
   def upload(context, path, options \\ []) do
     # resolve remote relative to context path
     # override with :as option if present
-    remote = case Keyword.get(options, :as, false) do
-      false -> case context.path do
-        nil -> path
-        _ -> Path.join(context.path, path)
-      end
+    destination_path = if (context.path), do: context.path, else: nil
+    destination = case Keyword.get(options, :as, false) do
+      false -> path
       override -> override
     end
-
+    remote = Path.join(destination_path, destination)
     run = fn host ->
       {:ok, conn} = SSH.connect(host.name, host.options)
       SCP.upload(conn, path, remote, options)
